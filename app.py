@@ -68,47 +68,49 @@ def get_transcript(video_id):
             break
     return None
 
-# Streamlit app interface
+def display_results(user_query, max_results=10):
+    """Display search results with time lapses and text for the query."""
+    videos = search_youtube(user_query, max_results)
+
+    results = []
+    for video in videos:
+        transcript = get_transcript(video['video_id'])
+        if transcript:
+            time_lapses = analyze_transcript(transcript, user_query)
+            results.append({
+                'title': video['title'],
+                'link': f"https://www.youtube.com/watch?v={video['video_id']}",
+                'description': video['description'],
+                'time_lapses': [
+                    {
+                        'time': format_time(t['time']),
+                        'text': t['text']
+                    } for t in time_lapses
+                ]
+            })
+        else:
+            st.warning(f"No transcript available for video {video['video_id']}")
+
+    # Sort results by the number of time lapses in descending order
+    results.sort(key=lambda x: len(x['time_lapses']), reverse=True)
+
+    # Display results
+    for i, result in enumerate(results):
+        st.subheader(f"{i + 1}. {result['title']}")
+        st.write(f"**Link:** [Watch Video]({result['link']})")
+        st.write(f"**Description:** {result['description']}")
+        if result['time_lapses']:
+            st.write("**Time Lapse** | **Text**")
+            for time_lapse in result['time_lapses']:
+                st.write(f"{time_lapse['time']} | {time_lapse['text']}")
+        else:
+            st.write("No relevant time lapses found.")
+        st.write("---------")
+
+# Streamlit UI
 st.title("YouTube Transcript Search")
+user_query = st.text_input("Enter your search query:", "")
+max_results = st.slider("Number of results to show:", min_value=1, max_value=20, value=10)
 
-user_query = st.text_input("Enter your query")
-
-if st.button("Search"):
-    if user_query:
-        videos = search_youtube(user_query)
-        results = []
-        for video in videos:
-            transcript = get_transcript(video['video_id'])
-            if transcript:
-                time_lapses = analyze_transcript(transcript, user_query)
-                results.append({
-                    'title': video['title'],
-                    'link': f"https://www.youtube.com/watch?v={video['video_id']}",
-                    'description': video['description'],
-                    'time_lapses': [
-                        {
-                            'time': format_time(t['time']),
-                            'text': t['text']
-                        } for t in time_lapses
-                    ]
-                })
-            else:
-                st.warning(f"No transcript available for video {video['video_id']}")
-        
-        # Sort results by the number of time lapses in descending order
-        results.sort(key=lambda x: len(x['time_lapses']), reverse=True)
-
-        # Display results
-        for i, result in enumerate(results):
-            st.subheader(f"{i + 1}. {result['title']}")
-            st.write(f"[Link]({result['link']})")
-            st.write(f"Description: {result['description']}")
-            if result['time_lapses']:
-                st.write("**Time Lapse          Text**")
-                for time_lapse in result['time_lapses']:
-                    st.write(f"{time_lapse['time']}            {time_lapse['text']}")
-            else:
-                st.write("No relevant time lapses found.")
-            st.write("---------")
-    else:
-        st.error("Please enter a query")
+if user_query:
+    display_results(user_query, max_results)
